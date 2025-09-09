@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Riddles Challenge</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+
+        :root {
+            --primary-color: #6a1b9a;
+            --secondary-color: #ab47bc;
+            --background-color: #f3e5f5;
+            --text-color: #333;
+            --white: #ffffff;
+            --correct: #4caf50;
+            --incorrect: #f44336;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            background-color: var(--white);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        #game-screen { display: none; }
+        #end-screen { display: none; }
+
+        h1 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        #category-display {
+            background-color: #e1bee7;
+            color: var(--primary-color);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        #puzzle-display {
+            font-size: 3.5rem;
+            margin-bottom: 25px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.5rem;
+        }
+
+        #answer-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            text-align: center;
+            border: 2px solid #ce93d8;
+            border-radius: 12px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        #answer-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(106, 27, 154, 0.2);
+        }
+
+        .submit-btn {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            width: 100%;
+        }
+        .submit-btn:hover {
+            background-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        #feedback {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 25px;
+        }
+        
+        .feedback-correct { color: var(--correct); }
+        .feedback-incorrect { color: var(--incorrect); }
+
+        .primary-btn {
+            background: linear-gradient(45deg, #8E24AA 30%, #D81B60 90%);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 3px 5px 2px rgba(171, 71, 188, .3);
+            transition: transform 0.2s ease;
+            margin-top: 20px;
+            text-decoration: none;
+        }
+        .primary-btn:hover {
+            transform: scale(1.05);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <h1>Emoji Riddles Challenge</h1>
+            <p>A new, advanced set of emoji puzzles awaits. Can you solve them all?</p>
+            <button id="start-btn" class="primary-btn">Start Challenge</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen">
+            <div id="category-display"></div>
+            <div id="puzzle-display"></div>
+            <input type="text" id="answer-input" placeholder="TYPE YOUR ANSWER">
+            <button id="submit-btn" class="submit-btn">Submit</button>
+            <div id="feedback"></div>
+        </div>
+
+        <!-- End Screen -->
+        <div id="end-screen">
+            <h1>🏆 Challenge Complete! 🏆</h1>
+            <p>You've completed the challenge! Your feedback is crucial for our next steps.</p>
+            <a href="https://forms.gle/ckZqezwv195NN94C6" target="_blank" class="primary-btn">Give Feedback Now</a>
+        </div>
+    </div>
+
+    <script>
+        const puzzles = [
+            {
+                category: "1. Direct Combination",
+                puzzleHTML: "🏠+🔑",
+                answer: "HOUSEKEY"
+            },
+            {
+                category: "2. Sound Combination",
+                puzzleHTML: "🐝+🍃",
+                answer: "BELIEF"
+            },
+            {
+                category: "3. Dynamic Clue",
+                puzzleHTML: ["🥚", "🐣", "🐥", "🐓"],
+                answer: ["GROW", "CHICKEN"],
+                isAnimated: true
+            },
+            {
+                category: "4. Homophone / Pun",
+                puzzleHTML: "🍐",
+                answer: "PAIR"
+            },
+            {
+                category: "5. Emoji + Text Mix",
+                puzzleHTML: "🚗 + pet",
+                answer: "CARPET"
+            },
+            {
+                category: "6. Symbolic",
+                puzzleHTML: "🦁+👑",
+                answer: "KING"
+            },
+            {
+                category: "7. Number Substitution",
+                puzzleHTML: "B+4️⃣",
+                answer: "BEFORE"
+            },
+            {
+                category: "8. Sound + Meaning",
+                puzzleHTML: "🐝+🎂",
+                answer: "BIRTHDAY"
+            },
+            {
+                category: "9. Brain Teaser",
+                puzzleHTML: "🐟+🐟",
+                answer: "SELFISH"
+            }
+        ];
+
+        let currentPuzzleIndex = 0;
+        let animationInterval = null;
+
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+        const startBtn = document.getElementById('start-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const answerInput = document.getElementById('answer-input');
+
+        const categoryDisplayEl = document.getElementById('category-display');
+        const puzzleDisplayEl = document.getElementById('puzzle-display');
+        const feedbackEl = document.getElementById('feedback');
+
+        startBtn.addEventListener('click', startGame);
+        submitBtn.addEventListener('click', handleSubmit);
+        answerInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                handleSubmit();
+            }
+        });
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            displayPuzzle();
+        }
+
+        function displayPuzzle() {
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+            feedbackEl.textContent = '';
+            answerInput.value = '';
+            answerInput.disabled = false;
+            submitBtn.disabled = false;
+
+            const puzzle = puzzles[currentPuzzleIndex];
+            categoryDisplayEl.textContent = puzzle.category;
+
+            if (puzzle.isAnimated) {
+                let frame = 0;
+                animationInterval = setInterval(() => {
+                    puzzleDisplayEl.textContent = puzzle.puzzleHTML[frame];
+                    frame = (frame + 1) % puzzle.puzzleHTML.length;
+                }, 750);
+            } else {
+                puzzleDisplayEl.innerHTML = puzzle.puzzleHTML;
+            }
+        }
+
+        function handleSubmit() {
+            const userAnswer = answerInput.value.trim().toUpperCase();
+            if (!userAnswer) return;
+
+            const puzzle = puzzles[currentPuzzleIndex];
+            let isCorrect = false;
+
+            if (Array.isArray(puzzle.answer)) {
+                if (puzzle.answer.includes(userAnswer)) {
+                    isCorrect = true;
+                }
+            } else {
+                if (userAnswer === puzzle.answer) {
+                    isCorrect = true;
+                }
+            }
+            
+            processResult(isCorrect);
+        }
+
+        function processResult(isCorrect) {
+            answerInput.disabled = true;
+            submitBtn.disabled = true;
+
+            if (isCorrect) {
+                feedbackEl.textContent = 'Correct!';
+                feedbackEl.className = 'feedback-correct';
+                if (animationInterval) clearInterval(animationInterval);
+                
+                setTimeout(() => {
+                    currentPuzzleIndex++;
+                    if (currentPuzzleIndex < puzzles.length) {
+                        displayPuzzle();
+                    } else {
+                        showEndScreen();
+                    }
+                }, 1500);
+            } else {
+                feedbackEl.textContent = 'Not quite, try again!';
+                feedbackEl.className = 'feedback-incorrect';
+                
+                setTimeout(() => {
+                    feedbackEl.textContent = '';
+                    answerInput.disabled = false;
+                    submitBtn.disabled = false;
+                    answerInput.focus();
+                }, 1500);
+            }
+        }
+
+        function showEndScreen() {
+            gameScreen.style.display = 'none';
+            endScreen.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
