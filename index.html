@@ -1,321 +1,546 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emoji Riddles Challenge</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emoji Crossword — Mega (18)</title>
+  <style>
+    :root { --bg:#f6f7fb; --panel:#fff; --text:#0f172a; --muted:#64748b; --accent:#6366f1; --danger:#ef4444; --ok:#16a34a; --grid:#cbd5e1; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; color:var(--text); background: linear-gradient(160deg,#f9fafb,#eef2ff 60%,#e2e8f0); }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; }
+    .title { display:flex; align-items:center; gap:10px; font-weight:700; font-size:20px; }
+    .badge { background:#e2e8f0; color:#334155; border-radius:999px; padding:2px 10px; font-size:12px; }
+    .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    button { appearance:none; border:1px solid #cbd5e1; background:#fff; padding:8px 12px; border-radius:12px; cursor:pointer; font-weight:600; }
+    button:hover { border-color:#94a3b8; }
+    button.primary { background:var(--accent); color:#fff; border-color:transparent; }
+    button.ghost { background:transparent; }
+    button[disabled] { opacity:.45; cursor:not-allowed; }
+    .container { max-width:1180px; margin:0 auto; padding:0 16px 40px; display:grid; grid-template-columns: 1.2fr 0.8fr; gap:16px; }
+    .card { background:var(--panel); border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 6px 18px rgba(2,6,23,.06); }
+    .card header { padding:14px 16px; border-bottom:1px solid #e5e7eb; }
+    .card .body { padding:16px; }
 
-        :root {
-            --primary-color: #6a1b9a;
-            --secondary-color: #ab47bc;
-            --background-color: #f3e5f5;
-            --text-color: #333;
-            --white: #ffffff;
-            --correct: #4caf50;
-            --incorrect: #f44336;
-        }
+    /* Grid */
+    .grid { display:grid; gap:0; user-select:none; }
+    .cell { position:relative; width:44px; height:44px; border:1px solid var(--grid); background:#fff; display:flex; align-items:center; justify-content:center; }
+    .block { background:#0b1220; border-color:#0b1220; }
+    .cell input { width:100%; height:100%; text-align:center; font-size:22px; border:0; outline:none; background:transparent; text-transform:uppercase; caret-color:transparent; }
+    .clueNo { position:absolute; left:3px; top:2px; font-size:10px; color:#475569; }
+    .active { background:#eef2ff !important; }
+    .selected { box-shadow:0 0 0 2px var(--accent) inset; z-index:2; }
+    .wrong { box-shadow:0 0 0 2px var(--danger) inset; }
+    .revealedMark { position:absolute; right:2px; bottom:2px; font-size:11px; }
 
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
+    /* Sidebar */
+    .tabs { display:flex; gap:8px; margin-bottom:12px; }
+    .tabs button { padding:6px 10px; border-radius:10px; }
+    .tabs button[aria-selected="true"] { background:#e2e8f0; }
+    .clues { max-height:460px; overflow:auto; }
+    .clue { border:1px solid #e2e8f0; padding:10px; border-radius:12px; margin-bottom:8px; cursor:pointer; }
+    .clue:hover { background:#f8fafc; }
 
-        #game-container {
-            width: 100%;
-            max-width: 500px;
-            background-color: var(--white);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        
-        #game-screen { display: none; }
-        #end-screen { display: none; }
+    .issues { margin-top:12px; background:#fff1f2; border:1px solid #fecdd3; border-radius:12px; padding:12px; color:#7f1d1d; }
+    .muted { color:var(--muted); font-size:12px; }
+    .footer { text-align:center; margin-top:12px; color:#64748b; font-size:12px; }
 
-        h1 {
-            color: var(--primary-color);
-            margin-top: 0;
-        }
+    .surveyBar { display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+    .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:10px 12px; border-radius:12px; box-shadow:0 6px 16px rgba(0,0,0,.2); display:none; }
+    .tests { margin:8px 16px; font-size:12px; color:#065f46; display:none; }
 
-        #category-display {
-            background-color: #e1bee7;
-            color: var(--primary-color);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-
-        #puzzle-display {
-            font-size: 3.5rem;
-            margin-bottom: 25px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            letter-spacing: 0.5rem;
-        }
-
-        #answer-input {
-            width: 100%;
-            padding: 15px;
-            font-size: 1.2rem;
-            text-align: center;
-            border: 2px solid #ce93d8;
-            border-radius: 12px;
-            box-sizing: border-box;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-        }
-        #answer-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 10px rgba(106, 27, 154, 0.2);
-        }
-
-        .submit-btn {
-            background-color: var(--secondary-color);
-            color: var(--white);
-            border: none;
-            padding: 15px 30px;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-            width: 100%;
-        }
-        .submit-btn:hover {
-            background-color: var(--primary-color);
-            transform: translateY(-2px);
-        }
-
-        #feedback {
-            margin-top: 20px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            height: 25px;
-        }
-        
-        .feedback-correct { color: var(--correct); }
-        .feedback-incorrect { color: var(--incorrect); }
-
-        .primary-btn {
-            background: linear-gradient(45deg, #8E24AA 30%, #D81B60 90%);
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 3px 5px 2px rgba(171, 71, 188, .3);
-            transition: transform 0.2s ease;
-            margin-top: 20px;
-            text-decoration: none;
-        }
-        .primary-btn:hover {
-            transform: scale(1.05);
-        }
-
-    </style>
+    @media (max-width:920px){ .container { grid-template-columns:1fr; } .cell { width:40px; height:40px; } }
+  </style>
 </head>
 <body>
+  <header>
+    <div class="title">🧩 Emoji Crossword — Mega (18) <span class="badge">HTML</span></div>
+    <div class="toolbar">
+      <button id="toggleDir">Direction: Across</button>
+      <button id="pauseBtn" class="ghost">⏱️ Pause</button>
+      <button id="resetBtn" class="ghost">🔁 Reset</button>
+      <button id="shareBtn" class="ghost">📤 Share</button>
+      <div class="surveyBar">
+        <span class="muted" id="surveyHint">Survey unlocks after you finish the crossword</span>
+        <button id="surveyBtn" class="primary" disabled>📝 Start Survey</button>
+      </div>
+      <div class="muted" id="timer">Time 00:00</div>
+    </div>
+  </header>
 
-    <div id="game-container">
-        <!-- Start Screen -->
-        <div id="start-screen">
-            <h1>Emoji Riddles Challenge</h1>
-            <p>A new, advanced set of emoji puzzles awaits. Can you solve them all?</p>
-            <button id="start-btn" class="primary-btn">Start Challenge</button>
+  <div class="container">
+    <div class="card">
+      <header>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="font-weight:700;">Emoji Crossword — Mega (18)</div>
+          <div class="muted" id="status">Solve the puzzle!</div>
         </div>
-
-        <!-- Game Screen -->
-        <div id="game-screen">
-            <div id="category-display"></div>
-            <div id="puzzle-display"></div>
-            <input type="text" id="answer-input" placeholder="TYPE YOUR ANSWER">
-            <button id="submit-btn" class="submit-btn">Submit</button>
-            <div id="feedback"></div>
+      </header>
+      <div class="body">
+        <div style="display:flex; gap:16px;">
+          <div id="gridWrap"></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <button id="checkCell" class="ghost">Check Cell</button>
+              <button id="checkWord" class="ghost">Check Word</button>
+              <button id="checkAll" class="primary">Check Crossword</button>
+              <button id="revealLetter" class="ghost">Reveal Letter</button>
+              <button id="revealWord" class="ghost">Reveal Word</button>
+              <button id="nextWord" class="ghost">Next Word ▶</button>
+            </div>
+            <div class="muted">Shortcuts: letters, Backspace, Arrows, Space (toggle direction), Tab (next word)</div>
+            <div id="issues" class="issues" style="display:none;"></div>
+            <div id="tests" class="tests"></div>
+          </div>
         </div>
-
-        <!-- End Screen -->
-        <div id="end-screen">
-            <h1>🏆 Challenge Complete! 🏆</h1>
-            <p>You've completed the challenge! Your feedback is crucial for our next steps.</p>
-            <a href="https://forms.gle/ckZqezwv195NN94C6" target="_blank" class="primary-btn">Give Feedback Now</a>
-        </div>
+      </div>
     </div>
 
-    <script>
-        const puzzles = [
-            {
-                category: "1. Direct Combination",
-                puzzleHTML: "🏠+🔑",
-                answer: "HOUSEKEY"
-            },
-            {
-                category: "2. Sound Combination",
-                puzzleHTML: "🐝+🍃",
-                answer: "BELIEF"
-            },
-            {
-                category: "3. Dynamic Clue",
-                puzzleHTML: ["🥚", "🐣", "🐥", "🐓"],
-                answer: ["GROW", "CHICKEN"],
-                isAnimated: true
-            },
-            {
-                category: "4. Homophone / Pun",
-                puzzleHTML: "🍐",
-                answer: "PAIR"
-            },
-            {
-                category: "5. Emoji + Text Mix",
-                puzzleHTML: "🚗 + pet",
-                answer: "CARPET"
-            },
-            {
-                category: "6. Symbolic",
-                puzzleHTML: "🦁+👑",
-                answer: "KING"
-            },
-            {
-                category: "7. Number Substitution",
-                puzzleHTML: "B+4️⃣",
-                answer: "BEFORE"
-            },
-            {
-                category: "8. Sound + Meaning",
-                puzzleHTML: "🐝+🎂",
-                answer: "BIRTHDAY"
-            },
-            {
-                category: "9. Brain Teaser",
-                puzzleHTML: "🐟+🐟",
-                answer: "SELFISH"
-            }
-        ];
+    <div class="card">
+      <header><div style="font-weight:700;">Clues</div></header>
+      <div class="body">
+        <div class="tabs">
+          <button id="tabAcross" aria-selected="true">Across</button>
+          <button id="tabDown" aria-selected="false">Down</button>
+        </div>
+        <div id="cluesAcross" class="clues"></div>
+        <div id="cluesDown" class="clues" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
 
-        let currentPuzzleIndex = 0;
-        let animationInterval = null;
+  <div class="footer">Made with ❤️ — clues show emoji only (with numbering); full keyboard controls; answer checking & reveal; survey unlock on solve.</div>
 
-        const startScreen = document.getElementById('start-screen');
-        const gameScreen = document.getElementById('game-screen');
-        const endScreen = document.getElementById('end-screen');
-        const startBtn = document.getElementById('start-btn');
-        const submitBtn = document.getElementById('submit-btn');
-        const answerInput = document.getElementById('answer-input');
+  <div id="toast" class="toast">🎉 Crossword solved! Survey unlocked.</div>
 
-        const categoryDisplayEl = document.getElementById('category-display');
-        const puzzleDisplayEl = document.getElementById('puzzle-display');
-        const feedbackEl = document.getElementById('feedback');
+<script>
+(function(){
+  // ============ CONFIG ============
+  const SURVEY_URL = 'https://forms.gle/BnBNL8RD2pwLNmLt8';
 
-        startBtn.addEventListener('click', startGame);
-        submitBtn.addEventListener('click', handleSubmit);
-        answerInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                handleSubmit();
-            }
-        });
+  // ============ DATA (emoji-only clues) ============
+  const ITEMS = [
+    { emoji: "🏠 + 🔑", answer: "HOUSEKEY" },
+    { emoji: "🧠 + 🌪️", answer: "BRAINSTORM" },
+    { emoji: "🐝 + 🍃", answer: "BELIEF" },
+    { emoji: "🌊 + 👂", answer: "WEAR" },
+    { emoji: "🥚 ➡️ 🐣 ➡️ 🐥 ➡️ 🐓", answer: "GROW" },
+    { emoji: "🌕 ➡️ 🌖 ➡️ 🌗 ➡️ 🌘 ➡️ 🌑", answer: "ECLIPSE" },
+    { emoji: "🐎", answer: "HOARSE" },
+    { emoji: "🍐", answer: "PAIR" },
+    { emoji: "🌞 + 📅", answer: "SUNDAY" },
+    { emoji: "🚗 + 🐾", answer: "CARPET" },
+    { emoji: "🦁 + 👑", answer: "KING" },
+    { emoji: "🕊️ + ☮️", answer: "PEACE" },
+    { emoji: "🎵 + 2️⃣", answer: "TUNE" },
+    { emoji: "🅱️ + 4️⃣", answer: "BEFORE" },
+    { emoji: "🐝 + 🎂", answer: "BIRTHDAY" },
+    { emoji: "🐘 + ⬆️", answer: "ELEVATE" },
+    { emoji: "🐟 + 🐟", answer: "SELFISH" },
+    { emoji: "🏙 + 💤", answer: "GOODNIGHT" },
+  ].map(x => ({ emoji: x.emoji, answer: (x.answer||"").replace(/[^A-Za-z]/g,"").toUpperCase() }));
 
-        function startGame() {
-            startScreen.style.display = 'none';
-            gameScreen.style.display = 'block';
-            displayPuzzle();
+  // ============ UI REFS ============
+  const statusEl = document.getElementById('status');
+  const timerEl = document.getElementById('timer');
+  const gridWrap = document.getElementById('gridWrap');
+  const issuesEl = document.getElementById('issues');
+  const cluesAcrossEl = document.getElementById('cluesAcross');
+  const cluesDownEl = document.getElementById('cluesDown');
+  const surveyBtn = document.getElementById('surveyBtn');
+  const surveyHint = document.getElementById('surveyHint');
+  const toast = document.getElementById('toast');
+  const testsEl = document.getElementById('tests');
+
+  // ============ BIG CROSSWORD BUILDER ============
+  function buildBigCrossword(title, items){
+    const occ = new Map(); // "r,c" -> letter
+    const placements = []; // {emoji, answer, dir, row, col}
+    const issues = [];
+
+    const put=(r,c,ch)=>occ.set(`${r},${c}`,ch);
+    const get=(r,c)=>occ.get(`${r},${c}`);
+
+    const bounds=()=>{
+      if(occ.size===0) return {minR:0,maxR:0,minC:0,maxC:0};
+      let minR=1e9,maxR=-1e9,minC=1e9,maxC=-1e9;
+      for(const k of occ.keys()){
+        const [rs,cs]=k.split(",");
+        const r=+rs,c=+cs; if(r<minR)minR=r;if(r>maxR)maxR=r;if(c<minC)minC=c;if(c>maxC)maxC=c;
+      }
+      return {minR,maxR,minC,maxC};
+    };
+
+    function canPlace(word,row,col,dir){
+      for(let i=0;i<word.length;i++){
+        const r = dir==='across'? row : row+i;
+        const c = dir==='across'? col+i : col;
+        const ex = get(r,c);
+        if(ex && ex!==word[i]) return false;
+        if(!ex){
+          if(dir==='across'){
+            if(get(r-1,c) || get(r+1,c)) return false; // vertical adjacency
+          }else{
+            if(get(r,c-1) || get(r,c+1)) return false; // horizontal adjacency
+          }
         }
+      }
+      if(dir==='across'){
+        if(get(row,col-1)) return false;
+        if(get(row,col+word.length)) return false;
+      }else{
+        if(get(row-1,col)) return false;
+        if(get(row+word.length,col)) return false;
+      }
+      return true;
+    }
 
-        function displayPuzzle() {
-            if (animationInterval) {
-                clearInterval(animationInterval);
-                animationInterval = null;
+    function place(emoji,wordRaw){
+      const word = (wordRaw||"").toUpperCase();
+      if(!word) return;
+      if(placements.length===0){
+        for(let i=0;i<word.length;i++) put(0,i,word[i]);
+        placements.push({emoji,answer:word,dir:'across',row:0,col:0});
+        return;
+      }
+      const {minR,maxR,minC,maxC}=bounds();
+      const cands=[]; // {row,col,dir,overlaps,area}
+      for(const p of placements){
+        for(let i=0;i<word.length;i++){
+          for(let j=0;j<p.answer.length;j++){
+            if(word[i]!==p.answer[j]) continue;
+            const dir = p.dir==='across'?'down':'across';
+            const row = p.dir==='across'? p.row - i : p.row + j;
+            const col = p.dir==='across'? p.col + j : p.col - i;
+            if(!canPlace(word,row,col,dir)) continue;
+            let overlaps=0; let minr=Math.min(minR,row), maxr=Math.max(maxR,row), minc=Math.min(minC,col), maxc=Math.max(maxC,col);
+            for(let k=0;k<word.length;k++){
+              const rr = dir==='across'? row : row+k;
+              const cc = dir==='across'? col+k : col;
+              if(get(rr,cc)===word[k]) overlaps++;
+              if(rr<minr)minr=rr; if(rr>maxr)maxr=rr; if(cc<minc)minc=cc; if(cc>maxc)maxc=cc;
             }
-            feedbackEl.textContent = '';
-            answerInput.value = '';
-            answerInput.disabled = false;
-            submitBtn.disabled = false;
-
-            const puzzle = puzzles[currentPuzzleIndex];
-            categoryDisplayEl.textContent = puzzle.category;
-
-            if (puzzle.isAnimated) {
-                let frame = 0;
-                animationInterval = setInterval(() => {
-                    puzzleDisplayEl.textContent = puzzle.puzzleHTML[frame];
-                    frame = (frame + 1) % puzzle.puzzleHTML.length;
-                }, 750);
-            } else {
-                puzzleDisplayEl.innerHTML = puzzle.puzzleHTML;
-            }
+            const area=(maxr-minr+1)*(maxc-minc+1);
+            cands.push({row,col,dir,overlaps,area});
+          }
         }
-
-        function handleSubmit() {
-            const userAnswer = answerInput.value.trim().toUpperCase();
-            if (!userAnswer) return;
-
-            const puzzle = puzzles[currentPuzzleIndex];
-            let isCorrect = false;
-
-            if (Array.isArray(puzzle.answer)) {
-                if (puzzle.answer.includes(userAnswer)) {
-                    isCorrect = true;
-                }
-            } else {
-                if (userAnswer === puzzle.answer) {
-                    isCorrect = true;
-                }
-            }
-            
-            processResult(isCorrect);
+      }
+      cands.sort((a,b)=> (b.overlaps-a.overlaps) || (a.area-b.area));
+      if(cands.length>0){
+        const best=cands[0];
+        for(let k=0;k<word.length;k++){
+          const rr=best.dir==='across'? best.row : best.row+k;
+          const cc=best.dir==='across'? best.col+k : best.col;
+          put(rr,cc,word[k]);
         }
+        placements.push({emoji,answer:word,dir:best.dir,row:best.row,col:best.col});
+        return;
+      }
+      let r=maxR+2, c=0; let tries=0;
+      while(!canPlace(word,r,c,'across') && tries<500){ r+=2; tries++; }
+      if(tries>=500){ issues.push(`Cannot place: ${emoji} (${word})`); return; }
+      for(let i=0;i<word.length;i++) put(r,c+i,word[i]);
+      placements.push({emoji,answer:word,dir:'across',row:r,col:c});
+    }
 
-        function processResult(isCorrect) {
-            answerInput.disabled = true;
-            submitBtn.disabled = true;
+    for(const it of items) place(it.emoji, it.answer);
 
-            if (isCorrect) {
-                feedbackEl.textContent = 'Correct!';
-                feedbackEl.className = 'feedback-correct';
-                if (animationInterval) clearInterval(animationInterval);
-                
-                setTimeout(() => {
-                    currentPuzzleIndex++;
-                    if (currentPuzzleIndex < puzzles.length) {
-                        displayPuzzle();
-                    } else {
-                        showEndScreen();
-                    }
-                }, 1500);
-            } else {
-                feedbackEl.textContent = 'Not quite, try again!';
-                feedbackEl.className = 'feedback-incorrect';
-                
-                setTimeout(() => {
-                    feedbackEl.textContent = '';
-                    answerInput.disabled = false;
-                    submitBtn.disabled = false;
-                    answerInput.focus();
-                }, 1500);
-            }
+    const {minR,maxR,minC,maxC}=bounds();
+    const H = maxR-minR+1, W = maxC-minC+1;
+    const grid = Array.from({length:H},()=>Array.from({length:W},()=> '#'));
+    for(const [k,ch] of occ.entries()){
+      const [rs,cs]=k.split(',');
+      const r=+rs-minR, c=+cs-minC;
+      grid[r][c]=ch;
+    }
+
+    const key=(r,c,d)=>`${r},${c},${d}`;
+    const placeMap = new Map();
+    for(const p of placements){ placeMap.set(key(p.row-minR,p.col-minC,p.dir), { ...p, row:p.row-minR, col:p.col-minC }); }
+
+    const across=[], down=[]; let number=1;
+    const at=(r,c)=> (r>=0&&r<H&&c>=0&&c<W? grid[r][c] : '#');
+    for(let r=0;r<H;r++){
+      for(let c=0;c<W;c++){
+        if(at(r,c)==='#') continue;
+        const startAcross = (c===0 || at(r,c-1)==='#') && (c+1<W && at(r,c+1)!=='#');
+        const startDown   = (r===0 || at(r-1,c)==='#') && (r+1<H && at(r+1,c)!=='#');
+        if(startAcross){
+          const p=placeMap.get(key(r,c,'across'));
+          let s=""; if(!p){ let cc=c; while(cc<W && at(r,cc)!=='#'){ s+=at(r,cc); cc++; } }
+          across.push({ number, row:r, col:c, answer: p? p.answer : s, emoji: p? p.emoji : '❓' });
+          number++;
         }
-
-        function showEndScreen() {
-            gameScreen.style.display = 'none';
-            endScreen.style.display = 'block';
+        if(startDown){
+          const p=placeMap.get(key(r,c,'down'));
+          let s=""; if(!p){ let rr=r; while(rr<H && at(rr,c)!=='#'){ s+=at(rr,c); rr++; } }
+          down.push({ number, row:r, col:c, answer: p? p.answer : s, emoji: p? p.emoji : '❓' });
+          number++;
         }
-    </script>
+      }
+    }
+
+    return { puzzle: { id:'mega-18', title, grid: grid.map(row=>row.join('')), clues:{ across, down } }, issues };
+  }
+
+  // ============ BOARD BUILDER ============
+  function buildBoardFromPuzzle(puzzle){
+    const issues=[];
+    const rows=puzzle.grid.length; const cols=puzzle.grid[0].length;
+    const board = Array.from({length:rows},(_,r)=> Array.from({length:cols},(_,c)=> ({ row:r,col:c,isBlock:puzzle.grid[r][c]==='#', value:"" })));
+
+    function place(cl,dir){
+      const ans = (cl.answer||"").toUpperCase();
+      const row=cl.row, col=cl.col;
+      if(row<0||col<0||row>=rows||col>=cols){ issues.push(`${dir.toUpperCase()} ${cl.number} start out of bounds (${row},${col})`); return; }
+      for(let i=0;i<ans.length;i++){
+        const r= dir==='across'? row : row+i;
+        const c= dir==='across'? col+i : col;
+        if(r<0||c<0||r>=rows||c>=cols){ issues.push(`${dir.toUpperCase()} ${cl.number} overflows grid`); return; }
+        const cell=board[r][c];
+        if(cell.isBlock){ issues.push(`${dir.toUpperCase()} ${cl.number} hits a block @(${r},${c})`); return; }
+        if(cell.solution && cell.solution!==ans[i]){ issues.push(`${dir.toUpperCase()} ${cl.number} letter conflict @(${r},${c})`); return; }
+      }
+      for(let i=0;i<ans.length;i++){
+        const r= dir==='across'? row : row+i; const c= dir==='across'? col+i : col; const cell=board[r][c];
+        cell.solution=ans[i]; if(i===0) cell.clueNumber = cell.clueNumber ?? cl.number;
+      }
+    }
+
+    (puzzle.clues.across||[]).forEach(cl=>place(cl,'across'));
+    (puzzle.clues.down||[]).forEach(cl=>place(cl,'down'));
+
+    return { board, issues };
+  }
+
+  // ============ STATE & CONTROLS ============
+  const state = { dir:'across', cursor:null, seconds:0, running:true, solved:false };
+  document.getElementById('toggleDir').onclick = ()=>{ state.dir = state.dir==='across'?'down':'across'; document.getElementById('toggleDir').textContent = `Direction: ${state.dir[0].toUpperCase()+state.dir.slice(1)}`; refreshActive(); };
+  document.getElementById('pauseBtn').onclick = ()=>{ state.running=!state.running; document.getElementById('pauseBtn').textContent = state.running? '⏱️ Pause' : '▶ Resume'; };
+  document.getElementById('resetBtn').onclick = ()=> reset();
+  document.getElementById('shareBtn').onclick = ()=> share();
+  document.getElementById('checkCell').onclick = ()=> check('cell');
+  document.getElementById('checkWord').onclick = ()=> check('word');
+  document.getElementById('checkAll').onclick = ()=> check('puzzle', /*fromUser*/ true);
+  document.getElementById('revealLetter').onclick = ()=> reveal('letter');
+  document.getElementById('revealWord').onclick = ()=> reveal('word');
+  document.getElementById('nextWord').onclick = ()=> cycleWord(1);
+
+  // use the single timerEl declared in UI REFS
+  setInterval(()=>{ if(state.running){ state.seconds++; const mm=String(Math.floor(state.seconds/60)).padStart(2,'0'); const ss=String(state.seconds%60).padStart(2,'0'); timerEl.textContent=`Time ${mm}:${ss}`; } }, 1000);
+
+  // ============ BUILD + RENDER SAFE ============
+  let big, puzzle, built, board, issues;
+  try {
+    big = buildBigCrossword('Emoji Crossword — Mega (18)', ITEMS);
+    puzzle = big.puzzle;
+    built = buildBoardFromPuzzle(puzzle);
+    board = built.board;
+    issues = [...(big.issues||[]), ...(built.issues||[])];
+
+    buildGrid();
+    renderClues();
+    renderIssues();
+    focusFirst();
+  } catch (e) {
+    console.error('Init error:', e);
+    document.getElementById('status').textContent = 'Init error — crossword failed to build';
+  }
+
+  // ============ RENDER HELPERS ============
+  function buildGrid(){
+    const rows=puzzle.grid.length, cols=puzzle.grid[0].length;
+    const grid = document.createElement('div');
+    grid.className='grid';
+    grid.style.gridTemplateColumns = `repeat(${cols}, 44px)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, 44px)`;
+
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const cell = board[r][c];
+        const div = document.createElement('div');
+        div.className='cell'+(cell.isBlock?' block':'');
+        div.dataset.r=r; div.dataset.c=c;
+        if(!cell.isBlock){
+          if(cell.clueNumber){ const small=document.createElement('span'); small.className='clueNo'; small.textContent=cell.clueNumber; div.appendChild(small); }
+          const input=document.createElement('input');
+          input.value=cell.value||'';
+          input.maxLength=1;
+          input.addEventListener('focus',()=>{ setCursor(r,c); });
+          input.addEventListener('input',(e)=>{ const ch=(e.target.value||'').replace(/[^A-Za-z]/g,'').toUpperCase(); e.target.value=ch; writeAndAdvance(r,c,ch,false); });
+          input.addEventListener('keydown',(e)=> handleKey(e,r,c));
+          div.appendChild(input);
+        }
+        grid.appendChild(div);
+      }
+    }
+    gridWrap.innerHTML='';
+    gridWrap.appendChild(grid);
+  }
+
+  function handleKey(e,r,c){
+    if(/^([A-Za-z])$/.test(e.key)) return;
+    if(e.key==='Backspace'){ e.preventDefault(); writeAndAdvance(r,c,'',true); return; }
+    if(e.key===' '){ e.preventDefault(); state.dir = state.dir==='across'?'down':'across'; document.getElementById('toggleDir').textContent = `Direction: ${state.dir[0].toUpperCase()+state.dir.slice(1)}`; refreshActive(); return; }
+    if(e.key==='Tab'){ e.preventDefault(); cycleWord(1); return; }
+    if(e.key==='ArrowLeft'){ e.preventDefault(); moveCursor(-1,0); return; }
+    if(e.key==='ArrowRight'){ e.preventDefault(); moveCursor(1,0); return; }
+    if(e.key==='ArrowUp'){ e.preventDefault(); moveCursor(0,-1); return; }
+    if(e.key==='ArrowDown'){ e.preventDefault(); moveCursor(0,1); return; }
+  }
+
+  function renderClues(){
+    const put=(root,list,dir)=>{
+      root.innerHTML='';
+      for(const c of list){
+        const li=document.createElement('div'); li.className='clue';
+        li.textContent = `${c.number}. ${c.emoji||''}`; // numbering + emoji only
+        li.onclick=()=>{ state.dir=dir; setCursor(c.row,c.col,true); if(dir==='across') switchTab('across'); else switchTab('down'); };
+        root.appendChild(li);
+      }
+    };
+    put(cluesAcrossEl, puzzle.clues.across, 'across');
+    put(cluesDownEl,   puzzle.clues.down,   'down');
+  }
+
+  function renderIssues(){
+    if(!issues.length){ issuesEl.style.display='none'; return; }
+    issuesEl.style.display='block';
+    issuesEl.innerHTML = `<strong>Crossword Issues Detected</strong><ul style="margin:6px 0 0 16px;">${issues.slice(0,10).map(s=>`<li>${s}</li>`).join('')}${issues.length>10?`<li>…and ${issues.length-10} more</li>`:''}</ul>`;
+  }
+
+  function focusFirst(){
+    outer: for(let r=0;r<board.length;r++) for(let c=0;c<board[0].length;c++){ if(!board[r][c].isBlock){ setCursor(r,c,true); break outer; } }
+  }
+
+  function setCursor(r,c,focus=false){
+    state.cursor={row:r,col:c}; refreshActive(); if(focus){ const el=document.querySelector(`.cell[data-r="${r}"][data-c="${c}"] input`); if(el) el.focus(); }
+  }
+
+  function refreshActive(){
+    document.querySelectorAll('.cell').forEach(d=>d.classList.remove('active','selected'));
+    const cur=state.cursor; if(!cur) return;
+    const start = findWordStart(cur.row,cur.col,state.dir);
+    const cells = getWordCells(start,state.dir);
+    for(const cell of cells){ const el=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"]`); if(el) el.classList.add('active'); }
+    const sel=document.querySelector(`.cell[data-r="${cur.row}"][data-c="${cur.col}"]`); if(sel) sel.classList.add('selected');
+  }
+
+  function findWordStart(row,col,dir){
+    if(row<0||col<0||row>=board.length||col>=board[0].length) return null;
+    if(board[row][col].isBlock) return null;
+    let r=row,c=col; if(dir==='across'){ while(c-1>=0 && !board[r][c-1].isBlock) c--; } else { while(r-1>=0 && !board[r-1][c].isBlock) r--; } return {row:r,col:c};
+  }
+
+  function getWordCells(start,dir){
+    const out=[]; if(!start) return out; let {row,col}=start; const R=board.length, C=board[0].length;
+    while(row>=0 && row<R && col>=0 && col<C && !board[row][col].isBlock){ out.push(board[row][col]); if(dir==='across') col++; else row++; }
+    return out;
+  }
+
+  function writeAndAdvance(row,col,ch,back){
+    const cell=board[row][col]; if(cell.isBlock) return;
+    cell.value = (ch||'').toUpperCase();
+    const start=findWordStart(row,col,state.dir); const cells=getWordCells(start,state.dir); const idx=cells.findIndex(cc=>cc.row===row&&cc.col===col); const step=back?-1:1; const nextIdx=Math.min(Math.max(idx+step,0),cells.length-1); const target=cells[nextIdx]; setCursor(target.row,target.col,true);
+    checkAutoSolved();
+  }
+
+  function moveCursor(dx,dy){ const cur=state.cursor; if(!cur) return; let r=cur.row+dy, c=cur.col+dx; const R=board.length,C=board[0].length; while(r>=0&&r<R&&c>=0&&c<C&&board[r][c].isBlock){ r+=dy; c+=dx; } if(r>=0&&r<R&&c>=0&&c<C) setCursor(r,c,true); }
+
+  function cycleWord(step){
+    const starts=[]; const R=board.length,C=board[0].length;
+    for(let r=0;r<R;r++) for(let c=0;c<C;c++){
+      if(board[r][c].isBlock) continue;
+      const aStart = (c===0||board[r][c-1].isBlock) && (c+1<C && !board[r][c+1].isBlock);
+      const dStart = (r===0||board[r-1][c].isBlock) && (r+1<R && !board[r+1][c].isBlock);
+      if(aStart) starts.push({row:r,col:c,dir:'across'});
+      if(dStart) starts.push({row:r,col:c,dir:'down'});
+    }
+    const cur=state.cursor; const s=findWordStart(cur.row,cur.col,state.dir); const i=starts.findIndex(x=>s&&x.row===s.row&&x.col===s.col&&x.dir===state.dir); const j=(i+step+starts.length)%starts.length; const nxt=starts[j]; state.dir=nxt.dir; setCursor(nxt.row,nxt.col,true);
+  }
+
+  function check(kind, fromUser){
+    let correctAll=true;
+    const mark=(cell)=>{ if(cell.isBlock||!cell.solution) return; const good=(cell.value||'')===cell.solution; cell.isCorrect=good; const el=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"]`); if(el){ el.classList.toggle('wrong', !good); } if(!good) correctAll=false; };
+    if(kind==='cell' && state.cursor){ mark(board[state.cursor.row][state.cursor.col]); }
+    else if(kind==='word' && state.cursor){ const start=findWordStart(state.cursor.row,state.cursor.col,state.dir); for(const c of getWordCells(start,state.dir)) mark(c); }
+    else { for(const row of board) for(const c of row) mark(c); }
+    if(kind==='puzzle'){
+      document.getElementById('status').textContent = correctAll? '🎉 All correct! Click "Start Survey" in the top-right.' : 'Some cells are wrong.';
+      if(correctAll) onPuzzleSolved(fromUser);
+    }
+  }
+
+  function reveal(kind){
+    if(!state.cursor) return;
+    const rev=(cell)=>{ if(cell.isBlock||!cell.solution) return; cell.value=cell.solution; const el=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"] input`); if(el) el.value=cell.solution; const mark=document.createElement('span'); mark.className='revealedMark'; mark.textContent='👀'; const host=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"]`); if(host && !host.querySelector('.revealedMark')) host.appendChild(mark); };
+    if(kind==='letter'){ rev(board[state.cursor.row][state.cursor.col]); }
+    else { const start=findWordStart(state.cursor.row,state.cursor.col,state.dir); for(const c of getWordCells(start,state.dir)) rev(c); }
+    checkAutoSolved();
+  }
+
+  function isAllCorrect(){
+    for(const row of board){ for(const cell of row){ if(cell.isBlock) continue; if((cell.value||'') !== (cell.solution||'')) return false; } }
+    return true;
+  }
+
+  function checkAutoSolved(){ if(!state.solved && isAllCorrect()){ onPuzzleSolved(false); } }
+
+  function onPuzzleSolved(fromUser){
+    if(state.solved) return; state.solved=true;
+    surveyBtn.disabled = false;
+    surveyHint.textContent = 'Survey unlocked';
+    toast.style.display='block'; setTimeout(()=> toast.style.display='none', 2500);
+    if(fromUser){ const go = confirm('Congrats! Start the survey now?'); if(go) window.open(SURVEY_URL, '_blank'); }
+  }
+
+  function reset(){
+    state.seconds=0; state.running=true; state.solved=false; document.getElementById('status').textContent='Solve the puzzle!';
+    surveyBtn.disabled=true; surveyHint.textContent='Survey unlocks after you finish the crossword';
+    const rebuilt = buildBoardFromPuzzle(puzzle); board=rebuilt.board; issues=[...big.issues, ...rebuilt.issues]; buildGrid(); renderClues(); renderIssues(); focusFirst();
+  }
+
+  function share(){
+    let out=[]; for(let r=0;r<board.length;r++){ let line=''; for(let c=0;c<board[0].length;c++){ const cell=board[r][c]; if(cell.isBlock) line+='⬛'; else if(!cell.value) line+='⬜'; else line += (cell.value===cell.solution? '🟩':'🟥'); } out.push(line); }
+    const mins=Math.floor(state.seconds/60), secs=String(state.seconds%60).padStart(2,'0'); const text=`${puzzle.title}\nTime ${mins}:${secs}\n${out.join('\n')}`; navigator.clipboard.writeText(text).then(()=> document.getElementById('status').textContent='Copied results to clipboard!');
+  }
+
+  // Tabs
+  document.getElementById('tabAcross').onclick = ()=>{ switchTab('across'); };
+  document.getElementById('tabDown').onclick = ()=>{ switchTab('down'); };
+  function switchTab(which){
+    const a=document.getElementById('tabAcross'), d=document.getElementById('tabDown');
+    const A=document.getElementById('cluesAcross'), D=document.getElementById('cluesDown');
+    if(which==='across'){ a.setAttribute('aria-selected','true'); d.setAttribute('aria-selected','false'); A.style.display='block'; D.style.display='none'; }
+    else { d.setAttribute('aria-selected','true'); a.setAttribute('aria-selected','false'); D.style.display='block'; A.style.display='none'; }
+  }
+
+  // ============ RUNTIME TESTS ============
+  function runTests(){
+    const results=[]; const ok=(name,cond)=>results.push(`${cond?'✅':'❌'} ${name}`);
+    try {
+      ok('Items length is 18', ITEMS.length===18);
+      ok('Puzzle grid exists', Array.isArray(puzzle.grid) && puzzle.grid.length>0);
+      ok('Board built', Array.isArray(board) && board.length===puzzle.grid.length);
+      ok('Survey button locked initially', document.getElementById('surveyBtn').disabled===true);
+      const txt1 = document.querySelector('#cluesAcross .clue')?.textContent||'';
+      ok('Clue shows numbering', /^\d+\.\s/.test(txt1));
+      ok('Clue text has no ASCII letters', !/[A-Za-z]/.test(txt1.replace(/^\d+\.\s/,'')));
+      // New: direction toggle updates label
+      const toggleBtn=document.getElementById('toggleDir'); const before=toggleBtn.textContent; toggleBtn.click(); ok('Toggle direction updates label', toggleBtn.textContent!==before); toggleBtn.click();
+      // New: reveal letter fills a cell
+      const firstInput=document.querySelector('.cell:not(.block) input'); const prev=firstInput?firstInput.value:null; document.getElementById('revealLetter').click(); const after=firstInput?firstInput.value:null; ok('Reveal letter fills a cell', firstInput? (after && after.length===1) : true);
+      // Simulate solve
+      for(const row of board){ for(const cell of row){ if(cell.isBlock) continue; cell.value=cell.solution; const el=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"] input`); if(el) el.value=cell.solution; } }
+      check('puzzle', false);
+      ok('Survey unlocks after solving', document.getElementById('surveyBtn').disabled===false);
+      reset();
+    } catch(e){ results.push('❌ Tests aborted: '+e.message); }
+    if(results.length){ testsEl.style.display='block'; testsEl.textContent = results.join(' \u2022 '); }
+  }
+  // Delay to allow initial render
+  setTimeout(runTests, 50);
+})();
+</script>
 </body>
 </html>
