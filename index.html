@@ -72,6 +72,7 @@
       <button id="pauseBtn" class="ghost">⏱️ Pause</button>
       <button id="resetBtn" class="ghost">🔁 Reset</button>
       <button id="shareBtn" class="ghost">📤 Share</button>
+      <button id="kbdToggle" class="ghost">🔕 Keyboard: Off</button>
       <div class="surveyBar">
         <span class="muted" id="surveyHint">Survey unlocks after you finish the crossword</span>
         <button id="surveyBtn" class="primary" disabled>📝 Start Survey</button>
@@ -183,6 +184,7 @@
   const surveyFrame = document.getElementById('surveyFrame');
   const surveyNewTab = document.getElementById('surveyNewTab');
   const surveyClose = document.getElementById('surveyClose');
+  const kbdToggle = document.getElementById('kbdToggle');
 
   // ============ BIG CROSSWORD BUILDER ============
   function buildBigCrossword(title, items){
@@ -346,7 +348,7 @@
   }
 
   // ============ STATE & CONTROLS ============
-  const state = { dir:'across', cursor:null, seconds:0, running:true, solved:false };
+  const state = { dir:'across', cursor:null, seconds:0, running:true, solved:false, suppressKeyboard:true };
   document.getElementById('toggleDir').onclick = ()=>{ state.dir = state.dir==='across'?'down':'across'; document.getElementById('toggleDir').textContent = `Direction: ${state.dir[0].toUpperCase()+state.dir.slice(1)}`; refreshActive(); };
   document.getElementById('pauseBtn').onclick = ()=>{ state.running=!state.running; document.getElementById('pauseBtn').textContent = state.running? '⏱️ Pause' : '▶ Resume'; };
   document.getElementById('resetBtn').onclick = ()=> reset();
@@ -357,6 +359,12 @@
   document.getElementById('revealLetter').onclick = ()=> reveal('letter');
   document.getElementById('revealWord').onclick = ()=> reveal('word');
   document.getElementById('nextWord').onclick = ()=> cycleWord(1);
+
+  kbdToggle.onclick = ()=>{
+    state.suppressKeyboard = !state.suppressKeyboard;
+    kbdToggle.textContent = state.suppressKeyboard ? '🔕 Keyboard: Off' : '🔡 Keyboard: On';
+    applyKeyboardMode();
+  };
 
   // timer
   setInterval(()=>{ if(state.running){ state.seconds++; const mm=String(Math.floor(state.seconds/60)).padStart(2,'0'); const ss=String(state.seconds%60).padStart(2,'0'); timerEl.textContent=`Time ${mm}:${ss}`; } }, 1000);
@@ -374,9 +382,39 @@
     renderClues();
     renderIssues();
     focusFirst();
+    applyKeyboardMode();
+    window.addEventListener('keydown', docKeydown, { capture:true });
   } catch (e) {
     console.error('Init error:', e);
     document.getElementById('status').textContent = 'Init error — crossword failed to build';
+  }
+
+  // ============ KEYBOARD HANDLING ============
+  function applyKeyboardMode(){
+    document.querySelectorAll('.cell input').forEach(inp=>{
+      if(state.suppressKeyboard){
+        inp.readOnly = true; inp.setAttribute('inputmode','none'); inp.setAttribute('aria-readonly','true');
+      }else{
+        inp.readOnly = false; inp.setAttribute('inputmode','text'); inp.removeAttribute('aria-readonly');
+      }
+    });
+  }
+
+  function docKeydown(e){
+    if(!state.suppressKeyboard) return; // when keyboard is ON, let inputs handle
+    const cur=state.cursor; if(!cur) return;
+    const isLetter = e.key && /^[A-Za-z]$/.test(e.key);
+    if(isLetter){ e.preventDefault(); writeAndAdvance(cur.row,cur.col,e.key,false); return; }
+    switch(e.key){
+      case 'Backspace': e.preventDefault(); writeAndAdvance(cur.row,cur.col,'',true); return;
+      case ' ': e.preventDefault(); state.dir = state.dir==='across'?'down':'across'; document.getElementById('toggleDir').textContent = `Direction: ${state.dir[0].toUpperCase()+state.dir.slice(1)}`; refreshActive(); return;
+      case 'Tab': e.preventDefault(); cycleWord(1); return;
+      case 'ArrowLeft': e.preventDefault(); moveCursor(-1,0); return;
+      case 'ArrowRight': e.preventDefault(); moveCursor(1,0); return;
+      case 'ArrowUp': e.preventDefault(); moveCursor(0,-1); return;
+      case 'ArrowDown': e.preventDefault(); moveCursor(0,1); return;
+      default: return;
+    }
   }
 
   // ============ RENDER HELPERS ============
@@ -411,7 +449,7 @@
   }
 
   function handleKey(e,r,c){
-    if(/^([A-Za-z])$/.test(e.key)) return;
+    if(/^([A-Za-z])$/.test(e.key)) return; // letters handled by input OR docKeydown
     if(e.key==='Backspace'){ e.preventDefault(); writeAndAdvance(r,c,'',true); return; }
     if(e.key===' '){ e.preventDefault(); state.dir = state.dir==='across'?'down':'across'; document.getElementById('toggleDir').textContent = `Direction: ${state.dir[0].toUpperCase()+state.dir.slice(1)}`; refreshActive(); return; }
     if(e.key==='Tab'){ e.preventDefault(); cycleWord(1); return; }
@@ -446,7 +484,8 @@
   }
 
   function setCursor(r,c,focus=false){
-    state.cursor={row:r,col:c}; refreshActive(); if(focus){ const el=document.querySelector(`.cell[data-r="${r}"][data-c="${c}"] input`); if(el) el.focus(); }
+    state.cursor={row:r,col:c}; refreshActive();
+    if(focus){ const el=document.querySelector(`.cell[data-r="${r}"][data-c="${c}"] input`); if(el){ if(!state.suppressKeyboard) el.focus(); }}
   }
 
   function refreshActive(){
@@ -498,7 +537,7 @@
     else if(kind==='word' && state.cursor){ const start=findWordStart(state.cursor.row,state.cursor.col,state.dir); for(const c of getWordCells(start,state.dir)) mark(c); }
     else { for(const row of board) for(const c of row) mark(c); }
     if(kind==='puzzle'){
-      document.getElementById('status').textContent = correctAll? '🎉 All correct! Click "Start Survey" in the top-right.' : 'Some cells are wrong.';
+      document.getElementById('status').textContent = correctAll? '🎉 All correct! Survey is now open.' : 'Some cells are wrong.';
       if(correctAll) onPuzzleSolved(fromUser);
     }
   }
@@ -534,7 +573,8 @@
     surveyBtn.disabled = false;
     surveyHint.textContent = 'Survey unlocked';
     toast.style.display='block'; setTimeout(()=> toast.style.display='none', 2500);
-    if(fromUser){ openSurveyModal(); }
+    // Always open modal immediately after puzzle is solved (auto-open)
+    openSurveyModal();
   }
 
   surveyBtn.onclick = ()=> { if(!state.solved) return; openSurveyModal(); };
@@ -545,6 +585,7 @@
     state.seconds=0; state.running=true; state.solved=false; document.getElementById('status').textContent='Solve the puzzle!';
     surveyBtn.disabled=true; surveyHint.textContent='Survey unlocks after you finish the crossword';
     const rebuilt = buildBoardFromPuzzle(puzzle); board=rebuilt.board; issues=[...big.issues, ...rebuilt.issues]; buildGrid(); renderClues(); renderIssues(); focusFirst();
+    applyKeyboardMode();
     closeSurveyModal();
   }
 
@@ -578,13 +619,19 @@
       const toggleBtn=document.getElementById('toggleDir'); const before=toggleBtn.textContent; toggleBtn.click(); ok('Toggle direction updates label', toggleBtn.textContent!==before); toggleBtn.click();
       // Reveal letter fills a cell
       const firstInput=document.querySelector('.cell:not(.block) input'); const prev=firstInput?firstInput.value:null; document.getElementById('revealLetter').click(); const after=firstInput?firstInput.value:null; ok('Reveal letter fills a cell', firstInput? (after && after.length===1) : true);
-      // Horizontal scroll exists on narrow host (no auto-resize)
+      // Horizontal scroll exists on narrow host (fixed 44px)
       const grid=gridWrap.querySelector('.grid'); const prevW=gridWrap.style.width; gridWrap.style.width='280px'; ok('Horizontal scroll available', grid.scrollWidth > gridWrap.clientWidth); gridWrap.style.width=prevW;
-      // Simulate solve and ensure modal opens
+      // Keyboard suppression default
+      ok('Keyboard suppressed by default', firstInput && firstInput.readOnly && firstInput.getAttribute('inputmode')==='none');
+      // Toggle keyboard ON
+      kbdToggle.click(); ok('Keyboard ON removes readonly', firstInput && !firstInput.readOnly && firstInput.getAttribute('inputmode')==='text');
+      kbdToggle.click();
+      // Auto-open survey when fully correct without pressing Check
       for(const row of board){ for(const cell of row){ if(cell.isBlock) continue; cell.value=cell.solution; const el=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"] input`); if(el) el.value=cell.solution; } }
-      check('puzzle', true); // fromUser=true should open modal
-      ok('Survey modal visible', getComputedStyle(surveyModal).display!=='none');
-      closeSurveyModal(); reset();
+      // trigger auto check
+      (function(){ const any = document.querySelector('.cell:not(.block) input'); if(any) any.dispatchEvent(new Event('input')); })();
+      setTimeout(()=>{ ok('Survey modal visible after auto-solve', getComputedStyle(surveyModal).display!=='none'); closeSurveyModal(); reset(); testsEl.style.display='block'; testsEl.textContent = results.join(' \u2022 '); }, 30);
+      return; // delay print until timeout
     } catch(e){ results.push('❌ Tests aborted: '+e.message); }
     if(results.length){ testsEl.style.display='block'; testsEl.textContent = results.join(' \u2022 '); }
   }
