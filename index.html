@@ -23,10 +23,11 @@
     .card .body { padding:16px; }
 
     /* Grid */
-    .grid { display:grid; gap:0; user-select:none; }
-    .cell { position:relative; width:44px; height:44px; border:1px solid var(--grid); background:#fff; display:flex; align-items:center; justify-content:center; }
+    .grid { display:grid; gap:0; user-select:none; --cell:44px; }
+    .gridHost { overflow:auto; max-width:100%; }
+    .cell { position:relative; width:var(--cell); height:var(--cell); border:1px solid var(--grid); background:#fff; display:flex; align-items:center; justify-content:center; }
     .block { background:#0b1220; border-color:#0b1220; }
-    .cell input { width:100%; height:100%; text-align:center; font-size:22px; border:0; outline:none; background:transparent; text-transform:uppercase; caret-color:transparent; }
+    .cell input { width:100%; height:100%; text-align:center; font-size:calc(var(--cell) * 0.5); border:0; outline:none; background:transparent; text-transform:uppercase; caret-color:transparent; }
     .clueNo { position:absolute; left:3px; top:2px; font-size:10px; color:#475569; }
     .active { background:#eef2ff !important; }
     .selected { box-shadow:0 0 0 2px var(--accent) inset; z-index:2; }
@@ -49,7 +50,11 @@
     .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:10px 12px; border-radius:12px; box-shadow:0 6px 16px rgba(0,0,0,.2); display:none; }
     .tests { margin:8px 16px; font-size:12px; color:#065f46; display:none; }
 
-    @media (max-width:920px){ .container { grid-template-columns:1fr; } .cell { width:40px; height:40px; } }
+    .boardRow { display:flex; gap:16px; align-items:flex-start; }
+    @media (max-width:920px){
+      .container { grid-template-columns:1fr; }
+      .boardRow { flex-direction:column; align-items:center; }
+    }
   </style>
 </head>
 <body>
@@ -77,9 +82,9 @@
         </div>
       </header>
       <div class="body">
-        <div style="display:flex; gap:16px;">
-          <div id="gridWrap"></div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+        <div class="boardRow">
+          <div id="gridWrap" class="gridHost"></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px;min-width:260px;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
               <button id="checkCell" class="ghost">Check Cell</button>
               <button id="checkWord" class="ghost">Check Word</button>
@@ -326,7 +331,7 @@
   document.getElementById('revealWord').onclick = ()=> reveal('word');
   document.getElementById('nextWord').onclick = ()=> cycleWord(1);
 
-  // use the single timerEl declared in UI REFS
+  // timer
   setInterval(()=>{ if(state.running){ state.seconds++; const mm=String(Math.floor(state.seconds/60)).padStart(2,'0'); const ss=String(state.seconds%60).padStart(2,'0'); timerEl.textContent=`Time ${mm}:${ss}`; } }, 1000);
 
   // ============ BUILD + RENDER SAFE ============
@@ -342,9 +347,27 @@
     renderClues();
     renderIssues();
     focusFirst();
+    applyResponsiveSizing();
+    window.addEventListener('resize', applyResponsiveSizing);
   } catch (e) {
     console.error('Init error:', e);
     document.getElementById('status').textContent = 'Init error — crossword failed to build';
+  }
+
+  // ============ RESPONSIVE SIZING ============
+  function applyResponsiveSizing(){
+    const cols = puzzle.grid[0].length;
+    const rows = puzzle.grid.length;
+    const host = gridWrap; // grid container
+    const grid = host.querySelector('.grid');
+    if(!grid) return;
+    // Available width: prefer host width, fallback to parent or viewport
+    const avail = Math.max(0, (host.clientWidth || (host.parentElement && host.parentElement.clientWidth) || window.innerWidth) - 8);
+    const desired = Math.floor(avail / cols);
+    const cell = Math.max(28, Math.min(44, desired)); // clamp for usability
+    grid.style.setProperty('--cell', cell + 'px');
+    grid.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+    grid.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
   }
 
   // ============ RENDER HELPERS ============
@@ -352,8 +375,9 @@
     const rows=puzzle.grid.length, cols=puzzle.grid[0].length;
     const grid = document.createElement('div');
     grid.className='grid';
-    grid.style.gridTemplateColumns = `repeat(${cols}, 44px)`;
-    grid.style.gridTemplateRows = `repeat(${rows}, 44px)`;
+    // template uses CSS var for responsiveness
+    grid.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+    grid.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
 
     for(let r=0;r<rows;r++){
       for(let c=0;c<cols;c++){
@@ -497,7 +521,7 @@
   function reset(){
     state.seconds=0; state.running=true; state.solved=false; document.getElementById('status').textContent='Solve the puzzle!';
     surveyBtn.disabled=true; surveyHint.textContent='Survey unlocks after you finish the crossword';
-    const rebuilt = buildBoardFromPuzzle(puzzle); board=rebuilt.board; issues=[...big.issues, ...rebuilt.issues]; buildGrid(); renderClues(); renderIssues(); focusFirst();
+    const rebuilt = buildBoardFromPuzzle(puzzle); board=rebuilt.board; issues=[...big.issues, ...rebuilt.issues]; buildGrid(); renderClues(); renderIssues(); focusFirst(); applyResponsiveSizing();
   }
 
   function share(){
@@ -526,10 +550,12 @@
       const txt1 = document.querySelector('#cluesAcross .clue')?.textContent||'';
       ok('Clue shows numbering', /^\d+\.\s/.test(txt1));
       ok('Clue text has no ASCII letters', !/[A-Za-z]/.test(txt1.replace(/^\d+\.\s/,'')));
-      // New: direction toggle updates label
+      // Direction toggle updates label
       const toggleBtn=document.getElementById('toggleDir'); const before=toggleBtn.textContent; toggleBtn.click(); ok('Toggle direction updates label', toggleBtn.textContent!==before); toggleBtn.click();
-      // New: reveal letter fills a cell
+      // Reveal letter fills a cell
       const firstInput=document.querySelector('.cell:not(.block) input'); const prev=firstInput?firstInput.value:null; document.getElementById('revealLetter').click(); const after=firstInput?firstInput.value:null; ok('Reveal letter fills a cell', firstInput? (after && after.length===1) : true);
+      // Responsive sizing reduces cell size when host width is small
+      const grid=gridWrap.querySelector('.grid'); const beforeCell=(grid.style.getPropertyValue('--cell')||'44px'); const prevW=gridWrap.style.width; gridWrap.style.width='300px'; applyResponsiveSizing(); const afterCell=(grid.style.getPropertyValue('--cell')||beforeCell); ok('Responsive sizing applied', parseInt(afterCell) <= parseInt(beforeCell)); gridWrap.style.width=prevW; applyResponsiveSizing();
       // Simulate solve
       for(const row of board){ for(const cell of row){ if(cell.isBlock) continue; cell.value=cell.solution; const el=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"] input`); if(el) el.value=cell.solution; } }
       check('puzzle', false);
@@ -538,8 +564,7 @@
     } catch(e){ results.push('❌ Tests aborted: '+e.message); }
     if(results.length){ testsEl.style.display='block'; testsEl.textContent = results.join(' \u2022 '); }
   }
-  // Delay to allow initial render
-  setTimeout(runTests, 50);
+  setTimeout(runTests, 60);
 })();
 </script>
 </body>
