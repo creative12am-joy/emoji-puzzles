@@ -23,11 +23,11 @@
     .card .body { padding:16px; }
 
     /* Grid */
-    .grid { display:grid; gap:0; user-select:none; --cell:44px; }
+    .grid { display:grid; gap:0; user-select:none; }
     .gridHost { overflow:auto; max-width:100%; }
-    .cell { position:relative; width:var(--cell); height:var(--cell); border:1px solid var(--grid); background:#fff; display:flex; align-items:center; justify-content:center; }
+    .cell { position:relative; width:44px; height:44px; border:1px solid var(--grid); background:#fff; display:flex; align-items:center; justify-content:center; }
     .block { background:#0b1220; border-color:#0b1220; }
-    .cell input { width:100%; height:100%; text-align:center; font-size:calc(var(--cell) * 0.5); border:0; outline:none; background:transparent; text-transform:uppercase; caret-color:transparent; }
+    .cell input { width:100%; height:100%; text-align:center; font-size:22px; border:0; outline:none; background:transparent; text-transform:uppercase; caret-color:transparent; }
     .clueNo { position:absolute; left:3px; top:2px; font-size:10px; color:#475569; }
     .active { background:#eef2ff !important; }
     .selected { box-shadow:0 0 0 2px var(--accent) inset; z-index:2; }
@@ -51,10 +51,17 @@
     .tests { margin:8px 16px; font-size:12px; color:#065f46; display:none; }
 
     .boardRow { display:flex; gap:16px; align-items:flex-start; }
-    @media (max-width:920px){
-      .container { grid-template-columns:1fr; }
-      .boardRow { flex-direction:column; align-items:center; }
-    }
+    @media (max-width:920px){ .container { grid-template-columns:1fr; } .boardRow { flex-direction:column; align-items:center; } }
+
+    /* Modal */
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; padding:16px; z-index:1000; }
+    .modalCard { background:#fff; width:min(900px,96vw); height:min(720px,90vh); border-radius:12px; border:1px solid #e5e7eb; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+    .modalHeader { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border-bottom:1px solid #e5e7eb; }
+    .modalHeader .title { font-size:16px; font-weight:700; }
+    .modalHeader .actions { display:flex; gap:8px; }
+    .modalHeader .actions a { text-decoration:none; }
+    .modalBody { flex:1; }
+    .modalBody iframe { width:100%; height:100%; border:0; }
   </style>
 </head>
 <body>
@@ -118,6 +125,22 @@
 
   <div id="toast" class="toast">🎉 Crossword solved! Survey unlocked.</div>
 
+  <!-- Survey Modal -->
+  <div id="surveyModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="surveyTitle">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <div id="surveyTitle" class="title">Survey</div>
+        <div class="actions">
+          <a id="surveyNewTab" href="#" target="_blank">Open in new tab ↗</a>
+          <button id="surveyClose" class="ghost">✖ Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <iframe id="surveyFrame" src="about:blank" title="Survey"></iframe>
+      </div>
+    </div>
+  </div>
+
 <script>
 (function(){
   // ============ CONFIG ============
@@ -156,6 +179,10 @@
   const surveyHint = document.getElementById('surveyHint');
   const toast = document.getElementById('toast');
   const testsEl = document.getElementById('tests');
+  const surveyModal = document.getElementById('surveyModal');
+  const surveyFrame = document.getElementById('surveyFrame');
+  const surveyNewTab = document.getElementById('surveyNewTab');
+  const surveyClose = document.getElementById('surveyClose');
 
   // ============ BIG CROSSWORD BUILDER ============
   function buildBigCrossword(title, items){
@@ -347,27 +374,9 @@
     renderClues();
     renderIssues();
     focusFirst();
-    applyResponsiveSizing();
-    window.addEventListener('resize', applyResponsiveSizing);
   } catch (e) {
     console.error('Init error:', e);
     document.getElementById('status').textContent = 'Init error — crossword failed to build';
-  }
-
-  // ============ RESPONSIVE SIZING ============
-  function applyResponsiveSizing(){
-    const cols = puzzle.grid[0].length;
-    const rows = puzzle.grid.length;
-    const host = gridWrap; // grid container
-    const grid = host.querySelector('.grid');
-    if(!grid) return;
-    // Available width: prefer host width, fallback to parent or viewport
-    const avail = Math.max(0, (host.clientWidth || (host.parentElement && host.parentElement.clientWidth) || window.innerWidth) - 8);
-    const desired = Math.floor(avail / cols);
-    const cell = Math.max(28, Math.min(44, desired)); // clamp for usability
-    grid.style.setProperty('--cell', cell + 'px');
-    grid.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
-    grid.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
   }
 
   // ============ RENDER HELPERS ============
@@ -375,9 +384,8 @@
     const rows=puzzle.grid.length, cols=puzzle.grid[0].length;
     const grid = document.createElement('div');
     grid.className='grid';
-    // template uses CSS var for responsiveness
-    grid.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
-    grid.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
+    grid.style.gridTemplateColumns = `repeat(${cols}, 44px)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, 44px)`;
 
     for(let r=0;r<rows;r++){
       for(let c=0;c<cols;c++){
@@ -510,18 +518,34 @@
 
   function checkAutoSolved(){ if(!state.solved && isAllCorrect()){ onPuzzleSolved(false); } }
 
+  function openSurveyModal(){
+    surveyFrame.src = SURVEY_URL; // Google Forms supports embedding
+    surveyNewTab.href = SURVEY_URL;
+    surveyModal.style.display = 'flex';
+  }
+
+  function closeSurveyModal(){
+    surveyModal.style.display = 'none';
+    surveyFrame.src = 'about:blank';
+  }
+
   function onPuzzleSolved(fromUser){
     if(state.solved) return; state.solved=true;
     surveyBtn.disabled = false;
     surveyHint.textContent = 'Survey unlocked';
     toast.style.display='block'; setTimeout(()=> toast.style.display='none', 2500);
-    if(fromUser){ const go = confirm('Congrats! Start the survey now?'); if(go) window.open(SURVEY_URL, '_blank'); }
+    if(fromUser){ openSurveyModal(); }
   }
+
+  surveyBtn.onclick = ()=> { if(!state.solved) return; openSurveyModal(); };
+  surveyClose.onclick = closeSurveyModal;
+  surveyModal.addEventListener('click', (e)=> { if(e.target===surveyModal) closeSurveyModal(); });
 
   function reset(){
     state.seconds=0; state.running=true; state.solved=false; document.getElementById('status').textContent='Solve the puzzle!';
     surveyBtn.disabled=true; surveyHint.textContent='Survey unlocks after you finish the crossword';
-    const rebuilt = buildBoardFromPuzzle(puzzle); board=rebuilt.board; issues=[...big.issues, ...rebuilt.issues]; buildGrid(); renderClues(); renderIssues(); focusFirst(); applyResponsiveSizing();
+    const rebuilt = buildBoardFromPuzzle(puzzle); board=rebuilt.board; issues=[...big.issues, ...rebuilt.issues]; buildGrid(); renderClues(); renderIssues(); focusFirst();
+    closeSurveyModal();
   }
 
   function share(){
@@ -554,13 +578,13 @@
       const toggleBtn=document.getElementById('toggleDir'); const before=toggleBtn.textContent; toggleBtn.click(); ok('Toggle direction updates label', toggleBtn.textContent!==before); toggleBtn.click();
       // Reveal letter fills a cell
       const firstInput=document.querySelector('.cell:not(.block) input'); const prev=firstInput?firstInput.value:null; document.getElementById('revealLetter').click(); const after=firstInput?firstInput.value:null; ok('Reveal letter fills a cell', firstInput? (after && after.length===1) : true);
-      // Responsive sizing reduces cell size when host width is small
-      const grid=gridWrap.querySelector('.grid'); const beforeCell=(grid.style.getPropertyValue('--cell')||'44px'); const prevW=gridWrap.style.width; gridWrap.style.width='300px'; applyResponsiveSizing(); const afterCell=(grid.style.getPropertyValue('--cell')||beforeCell); ok('Responsive sizing applied', parseInt(afterCell) <= parseInt(beforeCell)); gridWrap.style.width=prevW; applyResponsiveSizing();
-      // Simulate solve
+      // Horizontal scroll exists on narrow host (no auto-resize)
+      const grid=gridWrap.querySelector('.grid'); const prevW=gridWrap.style.width; gridWrap.style.width='280px'; ok('Horizontal scroll available', grid.scrollWidth > gridWrap.clientWidth); gridWrap.style.width=prevW;
+      // Simulate solve and ensure modal opens
       for(const row of board){ for(const cell of row){ if(cell.isBlock) continue; cell.value=cell.solution; const el=document.querySelector(`.cell[data-r="${cell.row}"][data-c="${cell.col}"] input`); if(el) el.value=cell.solution; } }
-      check('puzzle', false);
-      ok('Survey unlocks after solving', document.getElementById('surveyBtn').disabled===false);
-      reset();
+      check('puzzle', true); // fromUser=true should open modal
+      ok('Survey modal visible', getComputedStyle(surveyModal).display!=='none');
+      closeSurveyModal(); reset();
     } catch(e){ results.push('❌ Tests aborted: '+e.message); }
     if(results.length){ testsEl.style.display='block'; testsEl.textContent = results.join(' \u2022 '); }
   }
