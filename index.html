@@ -430,18 +430,32 @@
     if(e.key==='ArrowDown'){ e.preventDefault(); moveCursor(0,1); return; }
   }
 
+  // NEW: robust clue lookup with fallback to the direction that actually has a clue
+  function getClueAt(row,col,dir){
+    const start = findWordStart(row,col,dir); if(!start) return null;
+    const k = `${start.row},${start.col},${dir}`; return clueIdx.get(k) || null;
+  }
+
   function updateCurrentClue(){
     const cur=state.cursor; if(!cur){ currentClueEl.innerHTML = '<span class="muted">Tap any cell to see its clue</span>'; return; }
-    const start = findWordStart(cur.row,cur.col,state.dir); const otherDir = state.dir==='across'?'down':'across'; const startOther = findWordStart(cur.row,cur.col,otherDir);
-    const key=(r,c,d)=>`${r},${c},${d}`;
-    let main = start ? clueIdx.get(key(start.row,start.col,state.dir)) : null;
-    let alt  = startOther ? clueIdx.get(key(startOther.row,startOther.col,otherDir)) : null;
-    const mainNum = main? main.number : '–'; const mainEmoji = main? (main.emoji||'') : '❓';
-    const hasAlt = !!alt;
-    const dirLabel = state.dir==='across'?'A':'D';
-    const altLabel = otherDir==='across'?'A':'D';
-    currentClueEl.innerHTML = `<span class="pill">${mainNum}${dirLabel}</span> <span class="emo">${mainEmoji}</span>` + (hasAlt? `<span class="muted" style="margin-left:auto;">Also has <button id="switchDirBtn" class="ghost" style="padding:2px 8px; border-radius:999px;">Switch to ${altLabel}</button></span>` : '');
-    const btn=document.getElementById('switchDirBtn'); if(btn){ btn.onclick=()=>{ state.dir = otherDir; document.getElementById('toggleDir').textContent = `Direction: ${state.dir[0].toUpperCase()+state.dir.slice(1)}`; refreshActive(); }; }
+    let mainDir = state.dir;
+    let main = getClueAt(cur.row,cur.col,mainDir);
+    let altDir = mainDir==='across'?'down':'across';
+    let alt = getClueAt(cur.row,cur.col,altDir);
+
+    // If current direction has no clue (e.g., single-letter run), auto-fallback to the other direction
+    if(!main && alt){ main = alt; mainDir = altDir; state.dir = mainDir; alt = null; }
+
+    if(!main){ currentClueEl.innerHTML = '<span class="muted">No clue for this cell</span>'; return; }
+
+    const dirLabel = mainDir==='across'?'A':'D';
+    const mainNum = main.number; const mainEmoji = main.emoji || '';
+
+    const switchHtml = alt ? `<span class="muted" style="margin-left:auto;">Also has <button id="switchDirBtn" class="ghost" style="padding:2px 8px; border-radius:999px;">Switch to ${altDir==='across'?'A':'D'}</button></span>` : '';
+
+    currentClueEl.innerHTML = `<span class="pill">${mainNum}${dirLabel}</span> <span class="emo">${mainEmoji}</span>${switchHtml}`;
+
+    const btn=document.getElementById('switchDirBtn'); if(btn){ btn.onclick=()=>{ state.dir = altDir; document.getElementById('toggleDir').textContent = `Direction: ${state.dir[0].toUpperCase()+state.dir.slice(1)}`; refreshActive(); }; }
   }
 
   function renderIssues(){ if(!SHOW_ISSUES){ issuesEl.style.display='none'; return; } if(!issues.length){ issuesEl.style.display='none'; return; } issuesEl.style.display='block'; issuesEl.innerHTML = `<strong>Crossword Issues</strong><ul style="margin:6px 0 0 16px;">${issues.map(s=>`<li>${s}</li>`).join('')}</ul>`; }
